@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Evoked
+GenericName=Audience interaction for talks
+Comment=A neuron that listens to the room, and an audience brain where every phone is a neuron
+Exec=evoked %u
+Icon=io.github.dabane_ghassan.Evoked
+Terminal=false
+Categories=Utility;Education;Science;GNOME;
+Keywords=presentation;talk;audience;neuron;applause;vote;poll;neuroscience;
+MimeType=x-scheme-handler/evoked;
+StartupNotify=true
+StartupWMClass=io.github.dabane_ghassan.Evoked

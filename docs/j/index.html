@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Be a neuron</title>
+<meta name="theme-color" content="#14112B">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="../assets/mark.svg">
+<style>
+:root { --ink: #14112B; --paper: #F4F1FF; --mint: #3DFFA2; --pink: #FF4FA3; --amber: #FFD140; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--ink); color: var(--paper);
+  font: 500 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex; flex-direction: column; overflow: hidden; touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 20px 0; }
+header strong { font-weight: 800; letter-spacing: -.01em; }
+#status { color: rgba(244, 241, 255, .7); font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 16px 20px 28px; min-height: 0; }
+.hint { margin: 0; color: rgba(244, 241, 255, .72); text-align: center; max-width: 26ch; min-height: 2.8em; }
+[hidden] { display: none !important; }
+
+/* the neuron you are */
+#soma {
+  all: unset; position: relative; width: min(56vw, 38vh); aspect-ratio: 1; border-radius: 50%;
+  background: #6B66A0; box-shadow: inset 0 -10px 0 rgba(0, 0, 0, .18), 0 0 0 0 rgba(61, 255, 162, 0);
+  transition: background .25s, transform .12s; cursor: pointer;
+}
+#soma::before {
+  content: ""; position: absolute; left: 22%; top: 18%; width: 22%; height: 22%; border-radius: 50%;
+  background: rgba(255, 255, 255, .28);
+}
+#soma.fire { background: var(--mint); transform: scale(.94); transition: none; box-shadow: inset 0 -10px 0 rgba(0, 0, 0, .12), 0 0 0 26px rgba(61, 255, 162, .22); }
+#soma:focus-visible { outline: 4px solid var(--amber); outline-offset: 8px; }
+.dendrites { position: absolute; inset: -24%; pointer-events: none; z-index: -1; }
+.dendrites path { stroke: #6B66A0; stroke-width: 4.5; stroke-linecap: round; fill: none; transition: stroke .25s; }
+#soma.fire + .dendrites path, .cell.fire .dendrites path { stroke: var(--mint); transition: none; }
+.cell { position: relative; display: grid; place-items: center; margin: 12vh 0 11vh; }
+
+/* vote: two choices */
+#vote { width: 100%; max-width: 520px; flex: 1; display: grid; grid-template-rows: 1fr 1fr; gap: 14px; min-height: 0; }
+#vote button {
+  all: unset; display: grid; place-items: center; text-align: center; border-radius: 28px; padding: 12px;
+  font-weight: 800; font-size: clamp(26px, 9vw, 54px); letter-spacing: -.02em; cursor: pointer;
+  background: rgba(61, 255, 162, .16); color: var(--mint); box-shadow: inset 0 0 0 3px var(--mint);
+  transition: background .2s, transform .1s; overflow-wrap: anywhere;
+}
+#vote button + button { background: rgba(255, 79, 163, .16); color: var(--pink); box-shadow: inset 0 0 0 3px var(--pink); }
+#vote button.fire { background: var(--mint); color: var(--ink); transform: scale(.97); transition: none; }
+#vote button + button.fire { background: var(--pink); }
+#vote button:focus-visible { outline: 4px solid var(--amber); outline-offset: 4px; }
+
+/* typing the code by hand */
+form { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+input {
+  font: 800 44px/1 ui-monospace, Menlo, monospace; letter-spacing: .2em; text-transform: uppercase; text-align: center;
+  width: 6.4em; padding: 14px 0 14px .2em; border-radius: 18px; border: 3px solid rgba(244, 241, 255, .35);
+  background: transparent; color: var(--mint); outline: none;
+}
+input:focus { border-color: var(--mint); }
+form button { all: unset; padding: 14px 34px; border-radius: 999px; background: var(--mint); color: var(--ink); font-weight: 800; cursor: pointer; }
+form button:focus-visible { outline: 4px solid var(--amber); outline-offset: 4px; }
+
+#flash { position: fixed; inset: 0; background: var(--amber); opacity: 0; pointer-events: none; }
+#flash.on { opacity: 1; }
+#flash.fade { transition: opacity .5s ease-out; opacity: 0; }
+@media (prefers-reduced-motion: reduce) { #soma, #vote button { transition: none; } }
+</style>
+</head>
+<body>
+<header><strong>Evoked</strong><span id="status" role="status">connecting…</span></header>
+<main>
+  <form id="ask" hidden>
+    <p class="hint">Type the code on the screen.</p>
+    <input id="code" inputmode="text" autocapitalize="characters" autocomplete="off" maxlength="8" aria-label="Room code">
+    <button>Join</button>
+  </form>
+
+  <div class="cell" id="free" hidden>
+    <button id="soma" type="button" aria-label="Fire"></button>
+    <svg class="dendrites" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 30 L50 4 M50 14 L40 6 M50 18 L61 9"/><path d="M68 40 L93 26 M82 32 L86 20"/>
+      <path d="M68 62 L92 76 M82 70 L94 66"/><path d="M50 70 L50 97"/><path d="M32 62 L8 76 M18 70 L8 64"/><path d="M32 40 L8 26 M18 32 L14 20"/>
+    </svg>
+  </div>
+  <div id="vote" hidden><button type="button" data-c="0">A</button><button type="button" data-c="1">B</button></div>
+  <p class="hint" id="hint"></p>
+</main>
+<div id="flash" aria-hidden="true"></div>
+
+<script type="module">
+import {connectPacket, subscribePacket, publishPacket, PING, Parser} from './mqtt-core.js';
+
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const RELAY = params.get('relay') || 'wss://broker.emqx.io:8084/mqtt';
+const clean = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+
+let room = clean(decodeURIComponent(location.hash.slice(1)));
+let pid = null;
+try {
+  pid = sessionStorage.getItem('evoked-pid');
+} catch (_e) { /* private mode */ }
+if (!pid) {
+  pid = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+  try { sessionStorage.setItem('evoked-pid', pid); } catch (_e) { /* private mode */ }
+}
+
+let ws = null, online = false, backoff = 1, ping = 0, beat = 0;
+let ctl = null, over = false, pendingTaps = 0, pendingChoice = 0, flushTimer = 0;
+
+const base = () => `evoked/1/${room}`;
+const send = bytes => { if (ws && ws.readyState === 1) ws.send(bytes); };
+const say = message => send(publishPacket(`${base()}/up/${pid}`, JSON.stringify(message)));
+
+function render() {
+  const asking = !room;
+  $('ask').hidden = !asking;
+  const mode = ctl && ctl.mode;
+  $('free').hidden = asking || over || mode === 'vote';
+  $('vote').hidden = asking || over || mode !== 'vote';
+  if (asking) {
+    $('status').textContent = '';
+    $('hint').textContent = '';
+    return;
+  }
+  if (over) {
+    $('status').textContent = 'session ended';
+    $('hint').textContent = 'That was it. Thanks for being a neuron.';
+    return;
+  }
+  if (!online) {
+    $('status').textContent = 'connecting…';
+    $('hint').textContent = '';
+    return;
+  }
+  const seat = ctl && ctl.seats ? ctl.seats[pid] : undefined;
+  $('status').textContent = seat === undefined ? `room ${room}` : `neuron ${seat + 1} of ${ctl.n}`;
+  if (mode === 'vote') {
+    const [a, b] = $('vote').children;
+    a.textContent = ctl.labels[0];
+    b.textContent = ctl.labels[1];
+    $('hint').textContent = 'Tap your choice. Keep tapping: the first side to reach the line wins.';
+  } else if (mode === 'wave') {
+    $('hint').textContent = 'Hold your phone up. A wave is coming through the room.';
+  } else {
+    $('hint').textContent = 'You are a neuron. Tap to fire. Can the whole room fire together?';
+  }
+}
+
+function connect() {
+  if (!room || over)
+    return;
+  online = false;
+  render();
+  ws = new WebSocket(RELAY, 'mqtt');
+  ws.binaryType = 'arraybuffer';
+  const parser = new Parser();
+  const mine = ws;
+  ws.onopen = () => send(connectPacket(`evoked-p-${pid}-${Date.now() % 100000}`, 30,
+    {topic: `${base()}/up/${pid}`, payload: JSON.stringify({t: 'bye'})}));
+  ws.onmessage = event => {
+    for (const p of parser.push(new Uint8Array(event.data))) {
+      if (p.type === 'connack' && p.code === 0) {
+        online = true;
+        backoff = 1;
+        send(subscribePacket(1, `${base()}/ctl`));
+        send(subscribePacket(2, `${base()}/go`));
+        say({t: 'hi'});
+        clearInterval(ping);
+        clearInterval(beat);
+        ping = setInterval(() => send(PING), 18000);
+        beat = setInterval(() => say({t: 'hi'}), 8000);
+        render();
+      } else if (p.type === 'publish') {
+        let message = null;
+        try { message = JSON.parse(p.payload); } catch (_e) { /* ignore */ }
+        if (!message)
+          continue;
+        if (p.topic.endsWith('/ctl')) {
+          if (message.over) {
+            over = true;
+            ws.close();
+          } else {
+            ctl = message;
+          }
+          render();
+        } else if (p.topic.endsWith('/go')) {
+          wave(message);
+        }
+      }
+    }
+  };
+  ws.onclose = ws.onerror = () => {
+    if (mine !== ws)
+      return;
+    ws = null;
+    online = false;
+    clearInterval(ping);
+    clearInterval(beat);
+    render();
+    if (!over)
+      setTimeout(connect, backoff * 1000);
+    backoff = Math.min(10, backoff * 2);
+  };
+}
+
+function wave(message) {
+  const seat = ctl && ctl.seats ? ctl.seats[pid] : 0;
+  const flash = $('flash');
+  setTimeout(() => {
+    flash.className = 'on';
+    if (navigator.vibrate)
+      navigator.vibrate(60);
+    requestAnimationFrame(() => requestAnimationFrame(() => (flash.className = 'on fade')));
+  }, (seat || 0) * (message.step || 100));
+}
+
+function tap(choice, element) {
+  if (!online || over)
+    return;
+  pendingTaps++;
+  pendingChoice = choice;
+  if (!flushTimer) {
+    // a few fast taps travel as one message
+    flushTimer = setTimeout(() => {
+      say({t: 'tap', n: Math.min(5, pendingTaps), c: pendingChoice});
+      pendingTaps = 0;
+      flushTimer = 0;
+    }, 60);
+  }
+  const target = element.id === 'soma' ? element.parentElement : element;
+  element.classList.add('fire');
+  target.classList.add('fire');
+  setTimeout(() => { element.classList.remove('fire'); target.classList.remove('fire'); }, 110);
+  if (navigator.vibrate)
+    navigator.vibrate(12);
+}
+
+$('soma').addEventListener('pointerdown', event => { event.preventDefault(); tap(0, $('soma')); });
+$('soma').addEventListener('keydown', event => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) tap(0, $('soma')); });
+for (const button of $('vote').children) {
+  button.addEventListener('pointerdown', event => { event.preventDefault(); tap(Number(button.dataset.c), button); });
+  button.addEventListener('keydown', event => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) tap(Number(button.dataset.c), button); });
+}
+$('ask').addEventListener('submit', event => {
+  event.preventDefault();
+  room = clean($('code').value);
+  if (room) {
+    history.replaceState(null, '', `#${room}`);
+    connect();
+  }
+});
+addEventListener('pagehide', () => { if (online) say({t: 'bye'}); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !ws && !over) connect(); });
+if ('wakeLock' in navigator)
+  navigator.wakeLock.request('screen').catch(() => {});
+
+render();
+connect();
+window.evoked = {get state() { return {room, pid, online, over, ctl}; }};
+</script>
+</body>
+</html>

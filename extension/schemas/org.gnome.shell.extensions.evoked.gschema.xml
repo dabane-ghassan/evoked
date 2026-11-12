@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.evoked" path="/org/gnome/shell/extensions/evoked/">
+    <key name="corner" type="s">
+      <choices>
+        <choice value="bottom-right"/><choice value="bottom-left"/><choice value="top-right"/><choice value="top-left"/>
+      </choices>
+      <default>'bottom-right'</default>
+      <summary>Corner of the screen the panels sit in</summary>
+    </key>
+    <key name="panel-scale" type="d">
+      <range min="0.6" max="2.0"/>
+      <default>1.0</default>
+      <summary>Size of the panels</summary>
+    </key>
+    <key name="sensitivity" type="d">
+      <range min="0.2" max="4.0"/>
+      <default>1.0</default>
+      <summary>How easily the room neuron fires</summary>
+    </key>
+    <key name="audio-command" type="s">
+      <default>''</default>
+      <summary>Command that reports loudness (empty for the built-in microphone listener)</summary>
+    </key>
+    <key name="relay-url" type="s">
+      <default>'wss://broker.emqx.io:8084/mqtt'</default>
+      <summary>Relay server the phones and the presenter meet on (MQTT over WebSocket)</summary>
+    </key>
+    <key name="join-url" type="s">
+      <default>'https://dabane-ghassan.github.io/evoked/j/'</default>
+      <summary>Page the audience opens to join</summary>
+    </key>
+    <key name="room-code" type="s">
+      <default>''</default>
+      <summary>Fixed room code (empty for a new random code each time)</summary>
+    </key>
+    <key name="vote-labels" type="as">
+      <default>['A', 'B']</default>
+      <summary>Names of the two choices in vote mode</summary>
+    </key>
+    <key name="room-shortcut" type="as">
+      <default><![CDATA[['<Control><Alt>r']]]></default>
+      <summary>Turn the room neuron on or off</summary>
+    </key>
+    <key name="brain-shortcut" type="as">
+      <default><![CDATA[['<Control><Alt>b']]]></default>
+      <summary>Turn the audience brain on or off</summary>
+    </key>
+    <key name="join-shortcut" type="as">
+      <default><![CDATA[['<Control><Alt>j']]]></default>
+      <summary>Show or hide the join code</summary>
+    </key>
+    <key name="wave-shortcut" type="as">
+      <default><![CDATA[['<Control><Alt>w']]]></default>
+      <summary>Send a wave through the audience</summary>
+    </key>
+    <key name="raster-shortcut" type="as">
+      <default><![CDATA[['<Control><Alt>e']]]></default>
+      <summary>Show or hide the raster of the talk</summary>
+    </key>
+  </schema>
+</schemalist>

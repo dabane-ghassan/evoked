@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Evoked: see what your talk evokes in the room</title>
+<meta name="description" content="Evoked draws over your slides on the GNOME desktop: a neuron that fires when the audience claps or laughs, and an audience brain where every phone in the room is a neuron. Free and open source.">
+<meta name="theme-color" content="#14112B">
+<link rel="canonical" href="https://dabane-ghassan.github.io/evoked/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Evoked: see what your talk evokes">
+<meta property="og:description" content="A neuron that listens to the room, and an audience brain where every phone is a neuron. Draws over any slides.">
+<meta property="og:image" content="https://dabane-ghassan.github.io/evoked/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/mark.svg">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Unbounded:wght@600;800&display=swap">
+<style>
+:root {
+  --ink: #14112B; --deep: #0E0C20; --card: #1D1940; --paper: #F4F1FF; --soft: rgba(244, 241, 255, .68);
+  --mint: #3DFFA2; --pink: #FF4FA3; --amber: #FFD140; --dim: #6B66A0;
+  --display: "Unbounded", "Avenir Next", system-ui, sans-serif;
+  --text: "Figtree", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--deep); color: var(--paper); font: 400 17px/1.55 var(--text); -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration-color: var(--mint); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { color: var(--mint); }
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 8px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 28px); }
+
+nav { display: flex; align-items: center; gap: 10px; height: 68px; }
+nav img { width: 34px; height: 34px; border-radius: 9px; }
+nav strong { font: 800 17px/1 var(--display); letter-spacing: -.02em; }
+nav a { margin-left: auto; font-weight: 500; font-size: 15px; text-decoration: none; padding: 9px 14px; border-radius: 999px; }
+nav a:hover { background: rgba(244, 241, 255, .08); color: var(--paper); }
+
+/* the hero is a brain you can poke: the page's one big gesture */
+.hero { position: relative; border-radius: clamp(22px, 3vw, 38px); background: var(--ink); overflow: hidden; min-height: min(720px, calc(100vh - 96px)); display: grid; align-items: center; }
+#brain { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
+.hero { grid-template-columns: minmax(0, 1fr); }
+/* keep the words readable: the neurons fade out behind them */
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, var(--ink) 0, var(--ink) 30%, rgba(20, 17, 43, 0) 62%); }
+.pitch { position: relative; z-index: 1; min-width: 0; pointer-events: none; padding: clamp(28px, 6vw, 72px); max-width: 780px; }
+#sync { z-index: 1; }
+@media (max-width: 760px) {
+  .hero { display: flex; flex-direction: column; align-items: stretch; min-height: 0; }
+  .hero::after { display: none; }
+  .hero .pitch { padding: 26px 20px 8px; }
+  .hero .cmd { width: auto; }
+  .hero .cmd code { min-width: 0; flex: 1; }
+  .hero #brain { position: relative; order: 2; height: 320px; }
+  .hero #sync { position: static; order: 3; margin: 0; padding: 4px 20px 20px; text-align: center; }
+}
+.pitch > * { pointer-events: auto; }
+h1 { margin: 0; font: 800 clamp(34px, 6.4vw, 78px)/1.02 var(--display); letter-spacing: -.045em; text-wrap: balance; }
+.lede { margin: clamp(16px, 3vh, 26px) 0 0; max-width: 36ch; font-size: clamp(18px, 2vw, 21px); line-height: 1.45; color: var(--soft); text-wrap: pretty; }
+.cmd { margin-top: clamp(22px, 4vh, 36px); max-width: 100%; width: fit-content; display: flex; align-items: center; gap: 6px; padding: 7px 7px 7px 20px; background: var(--deep); border: 1px solid rgba(244, 241, 255, .16); border-radius: 999px; }
+.cmd code { font: 500 clamp(11px, 1.45vw, 14px)/1 var(--mono); white-space: nowrap; overflow-x: auto; scrollbar-width: none; padding: 12px 0; }
+.cmd code::before { content: "$ "; color: var(--mint); }
+.cmd button { all: unset; box-sizing: border-box; flex: none; padding: 10px 18px; border-radius: 999px; background: var(--mint); color: var(--ink); font: 600 14px/1 var(--text); min-width: 74px; text-align: center; cursor: pointer; }
+.cmd button:hover { background: #7BFFC2; }
+.cmd button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.fine { margin: 14px 0 0; font-size: 14.5px; color: var(--soft); max-width: 48ch; }
+#sync { position: absolute; right: clamp(16px, 3vw, 30px); bottom: clamp(14px, 3vw, 26px); font: 600 14px/1 var(--text); color: var(--soft); pointer-events: none; text-align: right; }
+#sync b { color: var(--amber); font-weight: 600; }
+
+section.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.card { background: var(--card); border-radius: 26px; padding: clamp(22px, 3vw, 32px); }
+h2 { margin: 0 0 8px; font: 800 clamp(20px, 2.4vw, 26px)/1.15 var(--display); letter-spacing: -.03em; }
+.card p { margin: 0 0 12px; color: var(--soft); }
+.card p:last-child { margin-bottom: 0; }
+@media (max-width: 860px) { section.two { grid-template-columns: minmax(0, 1fr); } }
+
+/* the room neuron, running in the page */
+#scope { width: 100%; height: 120px; display: block; border-radius: 16px; background: var(--deep); margin: 14px 0; }
+.listen { all: unset; box-sizing: border-box; padding: 11px 20px; border-radius: 999px; font-weight: 600; font-size: 15px; cursor: pointer; background: rgba(61, 255, 162, .14); color: var(--mint); box-shadow: inset 0 0 0 2px var(--mint); }
+.listen:hover { background: rgba(61, 255, 162, .24); }
+.listen:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+#heard { margin-left: 12px; color: var(--soft); font-size: 15px; font-variant-numeric: tabular-nums; }
+
+.modes { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.modes li { display: grid; grid-template-columns: 5.2em 1fr; gap: 14px; align-items: baseline; }
+.modes b { font: 800 14px/1.3 var(--display); color: var(--mint); }
+.modes li:nth-child(2) b { color: var(--amber); }
+.modes li:nth-child(3) b { color: var(--pink); }
+.modes span { color: var(--soft); }
+
+kbd { font: 600 13px/1 var(--text); padding: 5px 8px; border-radius: 8px; background: rgba(244, 241, 255, .12); color: var(--paper); white-space: nowrap; }
+dl.keys { margin: 14px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; align-items: baseline; font-size: 16px; }
+dl.keys dt { white-space: nowrap; }
+dl.keys dd { margin: 0; color: var(--soft); }
+
+footer { margin: 44px auto 0; padding-bottom: 64px; max-width: 66ch; text-align: center; color: var(--soft); font-size: 15.5px; }
+footer p { margin: 0 0 10px; text-wrap: pretty; }
+footer a { color: var(--paper); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <img src="assets/mark.svg" alt="">
+    <strong>Evoked</strong>
+    <a href="https://github.com/dabane-ghassan/evoked">Source on GitHub</a>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <canvas id="brain" aria-label="A patch of neurons. Click or tap one to make it fire."></canvas>
+      <div class="pitch">
+        <h1>See what your talk evokes.</h1>
+        <p class="lede">Every phone in the room becomes a neuron on your slides. And one more neuron listens for applause.</p>
+        <div class="cmd">
+          <code id="cmd">curl -fsSL https://dabane-ghassan.github.io/evoked/install.sh | sh</code>
+          <button type="button" id="copy">Copy</button>
+        </div>
+        <p class="fine">For the GNOME desktop, 45 or later, on any distro. Paste it in a terminal, then log out and back in once. Version <span id="version">1.0.0</span>, free and open source.</p>
+      </div>
+      <p id="sync">Click the neurons. Fire six within a blink and they are <b>in sync</b>.</p>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <h2>Audience brain</h2>
+        <p>Turn it on and a QR code appears over your slides. People scan it, and each phone is one neuron in a network in the corner of your screen. Nothing to install, no accounts.</p>
+        <ul class="modes">
+          <li><b>Free</b><span>Every tap is a spike. The room tries to fire together, and you see synchrony emerge, or not.</span></li>
+          <li><b>Wave</b><span>You send a wave. Phones light up one after another across the room.</span></li>
+          <li><b>Vote</b><span>Two choices race to a threshold, pushed by taps. A decision by accumulating evidence.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Room neuron</h2>
+        <p>A leaky integrate-and-fire neuron driven by how loud the room is. It adapts to steady sound, so it fires for what stands out: clapping, laughter, a lively question. At the end you get the raster of your whole talk.</p>
+        <canvas id="scope" aria-label="Membrane potential of the room neuron"></canvas>
+        <button class="listen" type="button" id="listen">Let it hear this room</button><span id="heard" role="status"></span>
+        <p style="margin-top:12px; font-size:15px">This demo runs in your browser. Nothing is recorded or sent; only loudness is measured.</p>
+      </div>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <h2>While you present</h2>
+        <dl class="keys">
+          <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>B</kbd></dt><dd>Start or end an audience session.</dd>
+          <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>J</kbd></dt><dd>Show or hide the join code.</dd>
+          <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>W</kbd></dt><dd>Send a wave.</dd>
+          <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>R</kbd></dt><dd>Room neuron on or off.</dd>
+          <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>E</kbd></dt><dd>Show the raster of the talk.</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Good to know</h2>
+        <p>It draws over anything, fullscreen slides included, and never takes clicks or keys away from your presentation.</p>
+        <p>Phones reach your laptop through a public relay server, so it works on conference Wi-Fi and on mobile data. Only taps travel through it. You can point it at your own relay in the settings.</p>
+        <p>There is an app window, a neuron in the top bar, and an <code>evoked</code> command for clickers and scripts.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Made by <a href="https://github.com/dabane-ghassan">Ghassan Dabane</a>, under the MIT license. Its sibling is <a href="https://dabane-ghassan.github.io/manicule/">Manicule</a>, a little hand on a stick for pointing at your slides.</p>
+    <p>An evoked response is what a stimulus brings out in a brain. This one measures a room.</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const copy = document.getElementById('copy');
+  copy.addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('cmd').textContent.trim()).then(() => {
+      copy.textContent = 'Copied';
+      setTimeout(() => (copy.textContent = 'Copy'), 1600);
+    });
+  });
+  fetch('https://api.github.com/repos/dabane-ghassan/evoked/releases/latest')
+    .then(r => (r.ok ? r.json() : null))
+    .then(r => { if (r && r.tag_name) document.getElementById('version').textContent = r.tag_name.replace(/^v/, ''); })
+    .catch(() => {});
+
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const MINT = [61, 255, 162], DIM = [107, 102, 160], AMBER = [255, 209, 64];
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+  function drawNeuron(g, x, y, r, glow, seed) {
+    const c = mix(DIM, MINT, Math.min(1, glow));
+    g.strokeStyle = rgb(c, .9); g.lineWidth = Math.max(1, r * .22); g.lineCap = 'round';
+    g.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = seed + i * 2 * Math.PI / 5 + .4 * Math.sin(seed * 3 + i);
+      g.moveTo(x + Math.cos(a) * r * .8, y + Math.sin(a) * r * .8);
+      g.lineTo(x + Math.cos(a) * r * 1.9, y + Math.sin(a) * r * 1.9);
+    }
+    g.stroke();
+    if (glow > .02) { g.fillStyle = rgb(MINT, .26 * glow); g.beginPath(); g.arc(x, y, r * (1.5 + 1.3 * glow), 0, 7); g.fill(); }
+    g.fillStyle = rgb(c); g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    g.fillStyle = `rgba(255,255,255,${.25 + .5 * glow})`; g.beginPath(); g.arc(x - r * .3, y - r * .3, r * .28, 0, 7); g.fill();
+  }
+
+  // ---- the hero: a patch of neurons you can fire
+  const canvas = document.getElementById('brain');
+  const g = canvas.getContext('2d');
+  const note = document.getElementById('sync');
+  let cells = [], W = 0, H = 0, syncedAt = -10;
+  const wide = () => innerWidth > 760;
+  function layout() {
+    const box = canvas.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    W = box.width; H = box.height;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(Math.min(110, Math.max(36, W * H / 11000)));
+    cells = Array.from({length: n}, (_v, i) => {
+      // packed like sunflower seeds, pushed towards the right so the headline stays readable
+      const d = Math.sqrt((i + .5) / n), a = i * 2.399963;
+      return {x: W * (wide() ? .68 : .5) + d * (wide() ? Math.min(W * .34, H * .7) : W * .52) * Math.cos(a), y: H * .5 + d * H * (wide() ? .5 : .46) * Math.sin(a), lit: -10, i};
+    });
+  }
+  function fire(x, y, now) {
+    let best = null, bd = 60 * 60;
+    for (const c of cells) { const d = (c.x - x) ** 2 + (c.y - y) ** 2; if (d < bd) { bd = d; best = c; } }
+    if (!best) return;
+    best.lit = now;
+    if (cells.filter(c => now - c.lit < .35).length >= 6 && now - syncedAt > 1.2) {
+      syncedAt = now;
+      note.innerHTML = '<b>In sync!</b> That ring is what the presenter sees.';
+    }
+  }
+  canvas.addEventListener('pointerdown', e => { const b = canvas.getBoundingClientRect(); fire(e.clientX - b.left, e.clientY - b.top, performance.now() / 1000); });
+  canvas.addEventListener('pointermove', e => { if (e.buttons) { const b = canvas.getBoundingClientRect(); fire(e.clientX - b.left, e.clientY - b.top, performance.now() / 1000); } });
+  let last = 0;
+  function frame(ms) {
+    const now = ms / 1000, dt = Math.min(.1, now - last); last = now;
+    if (!calm && Math.random() < 1.4 * dt) cells[Math.floor(Math.random() * cells.length)].lit = now;
+    g.clearRect(0, 0, W, H);
+    const r = Math.max(5, Math.min(9, W / 150));
+    for (const c of cells) drawNeuron(g, c.x, c.y, r, Math.exp(-(now - c.lit) / .3), c.i);
+    if (now - syncedAt < 1.2) {
+      const k = (now - syncedAt) / 1.2;
+      g.strokeStyle = rgb(AMBER, .8 * (1 - k)); g.lineWidth = 4; g.beginPath();
+      g.arc(W * (wide() ? .68 : .5), H * .5, Math.min(W, H) * (.18 + .3 * k), 0, 7); g.stroke();
+    }
+    requestAnimationFrame(frame);
+  }
+  layout(); addEventListener('resize', layout); requestAnimationFrame(frame);
+
+  // ---- the room neuron: the same model the app runs, fed by this page's microphone
+  const scope = document.getElementById('scope'), s = scope.getContext('2d');
+  const heard = document.getElementById('heard'), listen = document.getElementById('listen');
+  const N = 500, trace = new Float32Array(N), spikes = new Uint8Array(N);
+  let at = 0, v = 0, baseline = null, refractory = 0, total = 0, analyser = null, buf = null, glowAt = -10, listening = false;
+  const TAU = .06, REF = .05;
+  function hear(db, dt, now) {
+    if (baseline === null) baseline = db;
+    baseline += (db - baseline) * (1 - Math.exp(-dt / (db > baseline ? 6 : 1.5)));
+    const drive = Math.max(0, (db - baseline - 4) / 12) * 3;
+    let spiked = 0;
+    if (now >= refractory) {
+      v += (drive - v) * Math.min(1, dt / TAU);
+      if (v >= 1) { v = 0; refractory = now + REF; spiked = 1; total++; glowAt = now; }
+    }
+    at = (at + 1) % N; trace[at] = v; spikes[at] = spiked;
+  }
+  function scopeFrame(ms) {
+    const now = ms / 1000;
+    let db = -60;
+    if (analyser) {
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0; for (const x of buf) sum += x * x;
+      db = Math.max(-80, 10 * Math.log10(sum / buf.length + 1e-9));
+    } else if (!calm && !listening) {
+      // until the microphone is on, play a pretend talk: quiet, with a burst now and then
+      db = (now % 7) < 1.1 ? -24 : -58;
+    }
+    hear(db, 1 / 60, now);
+    const box = scope.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    if (scope.width !== Math.round(box.width * dpr)) { scope.width = box.width * dpr; scope.height = box.height * dpr; }
+    s.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = box.width, h = box.height, base = h - 22, x0 = 84, x1 = w - 12;
+    s.clearRect(0, 0, w, h);
+    const glow = Math.exp(-(now - glowAt) / .12);
+    s.strokeStyle = rgb(mix(DIM, MINT, glow), .9); s.lineWidth = 3; s.beginPath(); s.moveTo(44, 56); s.bezierCurveTo(66, 56, 62, base, x0, base); s.stroke();
+    drawNeuron(s, 42, 56, 15, glow, .6);
+    s.strokeStyle = 'rgba(244,241,255,.85)'; s.lineWidth = 1.6; s.beginPath();
+    for (let i = 0; i < N; i++) { const k = (at + 1 + i) % N, x = x0 + (x1 - x0) * i / (N - 1), y = base - Math.min(1, trace[k]) * (base - 30); i ? s.lineTo(x, y) : s.moveTo(x, y); }
+    s.stroke();
+    s.strokeStyle = rgb(MINT); s.lineWidth = 1.5; s.beginPath();
+    for (let i = 0; i < N; i++) { const k = (at + 1 + i) % N; if (spikes[k]) { const x = x0 + (x1 - x0) * i / (N - 1); s.moveTo(x, base); s.lineTo(x, 8); } }
+    s.stroke();
+    if (listening) heard.textContent = `${total} spikes so far. Clap!`;
+    requestAnimationFrame(scopeFrame);
+  }
+  requestAnimationFrame(scopeFrame);
+  listen.addEventListener('click', async () => {
+    if (listening) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false}});
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = ctx.createAnalyser(); analyser.fftSize = 1024; buf = new Float32Array(analyser.fftSize);
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      listening = true; total = 0; baseline = null; listen.textContent = 'Listening';
+    } catch (_e) {
+      heard.textContent = 'The browser did not allow the microphone.';
+    }
+  });
+})();
+</script>
+</body>
+</html>

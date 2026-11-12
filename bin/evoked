@@ -1,0 +1,110 @@
+#!/bin/sh
+# evoked: control Evoked from a terminal, a launcher, a clicker or an evoked:// link.
+# https://github.com/dabane-ghassan/evoked
+
+UUID="evoked@dabane-ghassan.github.io"
+DEST="org.gnome.Shell"
+OBJECT="/io/github/dabane_ghassan/Evoked"
+IFACE="io.github.dabane_ghassan.Evoked"
+INSTALLER="https://raw.githubusercontent.com/dabane-ghassan/evoked/main/install.sh"
+
+usage() {
+    cat <<USAGE
+Usage: evoked <command>
+
+  room on|off|toggle        the neuron that listens to the room
+  brain on|off|toggle       the audience brain (starts a session and shows the join code)
+  join on|off|toggle        show or hide the join code
+  mode free|wave|vote       what the audience brain is doing
+  wave                      send a wave through the audience
+  raster on|off|toggle      show the raster of this talk
+  save                      save the raster as a picture and print where it went
+  new                       start a new talk (forget the spikes so far)
+  state                     current state as JSON
+  app                       open the Evoked window
+  update                    install the latest version
+
+Links work too:  xdg-open evoked://brain/on   (room, brain, join, mode/<m>, wave, raster)
+USAGE
+}
+
+call() {
+    method="$1"; shift
+    gdbus call --session --dest "$DEST" --object-path "$OBJECT" --method "$IFACE.$method" "$@" 2>/dev/null
+}
+
+running() {
+    call GetState >/dev/null
+}
+
+notify() {
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -a Evoked -i io.github.dabane_ghassan.Evoked "Evoked" "$1"
+    fi
+    echo "$1" >&2
+}
+
+need() {
+    running && return 0
+    if ! command -v gnome-extensions >/dev/null 2>&1; then
+        notify "Evoked needs the GNOME desktop."
+        exit 1
+    fi
+    gnome-extensions enable "$UUID" >/dev/null 2>&1
+    sleep 1
+    running && return 0
+    notify "Almost there: log out and back in once so GNOME loads Evoked. Then look for the neuron in the top bar."
+    exit 1
+}
+
+unwrap() {
+    # D-Bus answers ('<text>',) or ("<text>",): strip the wrapper and undo its escaping
+    sed -e "s/^(['\"]//" -e "s/['\"],)\$//" -e 's/\\\\/\\/g' -e "s/\\\\'/'/g" -e 's/\\"/"/g'
+}
+
+cmd="$1"
+case "$cmd" in
+    evoked://*)
+        rest="${cmd#evoked://}"
+        cmd="${rest%%/*}"
+        arg=""
+        case "$rest" in */*) arg="${rest#*/}"; arg="${arg%%/*}";; esac
+        set -- "$cmd" "$arg"
+        ;;
+esac
+
+case "$cmd" in
+    room)    need; call Room "${2:-toggle}" >/dev/null ;;
+    brain)   need; call Brain "${2:-toggle}" >/dev/null ;;
+    join)    need; call Join "${2:-toggle}" >/dev/null ;;
+    raster)  need; call Raster "${2:-toggle}" >/dev/null ;;
+    wave)    need; call Wave >/dev/null ;;
+    new)     need; call NewTalk >/dev/null ;;
+    save)    need; call SaveRaster | unwrap ;;
+    state)   need; call GetState | unwrap ;;
+    mode)
+        need
+        case "$(call Mode "$2")" in
+            *true*) ;;
+            *) echo "evoked: mode is one of: free, wave, vote" >&2; exit 2 ;;
+        esac ;;
+    update)
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "$INSTALLER" | sh
+        else
+            wget -qO- "$INSTALLER" | sh
+        fi ;;
+    app|settings|launch|"")
+        if [ -z "$cmd" ] && [ -t 1 ]; then usage; exit 0; fi
+        for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/$UUID" \
+                   "/usr/share/gnome-shell/extensions/$UUID" \
+                   "$(dirname "$(readlink -f "$0")")/../extension"; do
+            if [ -f "$dir/app.js" ]; then
+                exec gjs -m "$dir/app.js"
+            fi
+        done
+        notify "Evoked's files are missing. Please install it again."
+        exit 1 ;;
+    -h|--help|help) usage ;;
+    *) usage >&2; exit 2 ;;
+esac

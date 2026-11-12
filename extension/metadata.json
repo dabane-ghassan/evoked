@@ -1,0 +1,9 @@
+{
+  "uuid": "evoked@dabane-ghassan.github.io",
+  "name": "Evoked",
+  "description": "See what your talk evokes in the room. A neuron that fires when the audience claps or laughs, and an audience brain where every phone is a neuron: fire in sync, send a wave, or vote by accumulating evidence. Draws over any slides.",
+  "version-name": "1.0.0",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
+  "url": "https://github.com/dabane-ghassan/evoked",
+  "settings-schema": "org.gnome.shell.extensions.evoked"
+}
