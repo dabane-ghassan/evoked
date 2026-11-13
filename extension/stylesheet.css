@@ -1,20 +1,15 @@
-/* Evoked: the cards drawn over your slides. Deep indigo, with mint for spikes. */
-
-.evoked-corner { spacing: 10px; }
+/* Evoked: the cards drawn over your slides. Deep indigo, with mint for spikes.
+   Only colours and weights live here. Sizes are set from stage.js, at the size each panel is
+   shown, so the text is always drawn at full resolution. */
 
 .evoked-card {
     background-color: rgba(20, 17, 43, 0.93);
     border: 1px solid rgba(244, 241, 255, 0.14);
-    border-radius: 20px;
-    padding: 12px 14px 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
-.evoked-head { spacing: 12px; padding-bottom: 4px; }
-.evoked-title { color: #f4f1ff; font-weight: 800; font-size: 13px; }
-.evoked-value { color: #3dffa2; font-weight: 700; font-size: 13px; font-feature-settings: "tnum"; }
+.evoked-title { color: #f4f1ff; font-weight: 800; }
+.evoked-value { color: #3dffa2; font-weight: 700; font-feature-settings: "tnum"; }
 
-.evoked-join { padding: 26px 34px 24px; spacing: 6px; border-radius: 34px; }
-.evoked-join-title { color: #f4f1ff; font-weight: 800; font-size: 30px; padding-bottom: 12px; }
-.evoked-join-url { color: rgba(244, 241, 255, 0.78); font-size: 17px; padding-top: 14px; }
-.evoked-join-code { color: #3dffa2; font-weight: 800; font-size: 46px; }
-.evoked-join-count { color: rgba(244, 241, 255, 0.6); font-size: 14px; }
+.evoked-join-title { color: #f4f1ff; font-weight: 800; }
+.evoked-join-url { color: rgba(244, 241, 255, 0.78); }
+.evoked-join-code { color: #3dffa2; font-weight: 800; }
+.evoked-join-count { color: rgba(244, 241, 255, 0.6); }

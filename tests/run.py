@@ -337,6 +337,9 @@ def run(rig, r):
     st = rig.state()
     r.check("turning the room neuron on starts listening", st["room"]["active"] and st["room"]["audio"] == "ok", st["room"])
     r.check("its panel is on screen", rig.ext("e.stage._roomCard.box.mapped") is True)
+    # stretching a drawn panel blurs it on big and HiDPI screens: everything must be drawn at its final size
+    r.check("panels are drawn at full size, never stretched",
+            rig.ext("[e.stage._corner, e.stage._join, e.stage._summary, e.stage._roomArea].every(a => a.scale_x === 1 && a.scale_y === 1)") is True)
     time.sleep(1.0)
     r.check("a quiet room: no spikes", rig.state()["room"]["spikes"] == 0, rig.state()["room"])
     rig.levels.write_text("-22\n")          # applause

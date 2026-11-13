@@ -21,6 +21,24 @@ export const SUMMARY_W = 860;
 export const SUMMARY_H = 400;
 const GOLDEN = 2.399963;        // the golden angle, for packing neurons into a disc
 
+// Sizes of the text and boxes, in design pixels (as on a 1080p screen at 100%). Everything is
+// laid out and drawn at its final size on screen; nothing is ever stretched after drawing,
+// which is what keeps it sharp on large and HiDPI screens.
+const STYLE = {
+    corner: u => `spacing: ${10 * u}px;`,
+    card: u => `border-radius: ${20 * u}px; padding: ${12 * u}px ${14 * u}px; border-width: ${Math.max(1, u)}px; ` +
+        `box-shadow: 0 ${10 * u}px ${30 * u}px rgba(0, 0, 0, 0.35);`,
+    head: u => `spacing: ${12 * u}px; padding-bottom: ${4 * u}px;`,
+    title: u => `font-size: ${13 * u}px;`,
+    value: u => `font-size: ${13 * u}px;`,
+    join: u => `border-radius: ${34 * u}px; padding: ${26 * u}px ${34 * u}px ${24 * u}px; spacing: ${6 * u}px; ` +
+        `border-width: ${Math.max(1, u)}px; box-shadow: 0 ${10 * u}px ${30 * u}px rgba(0, 0, 0, 0.35);`,
+    joinTitle: u => `font-size: ${30 * u}px; padding-bottom: ${12 * u}px;`,
+    joinUrl: u => `font-size: ${17 * u}px; padding-top: ${14 * u}px;`,
+    joinCode: u => `font-size: ${46 * u}px;`,
+    joinCount: u => `font-size: ${14 * u}px;`,
+};
+
 const now = () => GLib.get_monotonic_time() / 1e6;
 const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -130,7 +148,7 @@ function card(title) {
     head.add_child(name);
     head.add_child(value);
     box.add_child(head);
-    return {box, name, value};
+    return {box, head, name, value};
 }
 
 export class Stage {
@@ -142,6 +160,10 @@ export class Stage {
         this._qrFor = null;
         this._lastLabels = 0;
         this._lastTick = now();
+        this._unit = 1;         // stage pixels per design pixel, for the corner panels
+        this._joinUnit = 1;
+        this._sumUnit = 1;
+        this._styled = null;
 
         this._group = new Clutter.Actor({reactive: false, name: 'evoked-stage', visible: false});
         Main.layoutManager.uiGroup.add_child(this._group);
@@ -163,7 +185,8 @@ export class Stage {
 
         // the join card: a QR code big enough to scan from the back of the room
         this._join = new St.BoxLayout(boxProps(true, {style_class: 'evoked-card evoked-join'}));
-        this._join.add_child(new St.Label({text: 'Be a neuron', style_class: 'evoked-join-title', x_align: Clutter.ActorAlign.CENTER}));
+        this._joinTitle = new St.Label({text: 'Be a neuron', style_class: 'evoked-join-title', x_align: Clutter.ActorAlign.CENTER});
+        this._join.add_child(this._joinTitle);
         this._qrArea = new St.DrawingArea({width: QR_SIZE, height: QR_SIZE, x_align: Clutter.ActorAlign.CENTER});
         this._qrArea.connect('repaint', a => this._paintQr(a));
         this._join.add_child(this._qrArea);
@@ -178,6 +201,7 @@ export class Stage {
         this._summary = new St.DrawingArea({width: SUMMARY_W, height: SUMMARY_H});
         this._summary.connect('repaint', a => {
             const cr = a.get_context();
+            cr.scale(this._sumUnit, this._sumUnit);
             drawSummary(cr, SUMMARY_W, SUMMARY_H, this._room);
             cr.$dispose();
         });
@@ -221,31 +245,66 @@ export class Stage {
         }
     }
 
+    /** Size every panel for this screen, then put it in place. */
     _place() {
         const m = Main.layoutManager.primaryMonitor;
         if (!m)
             return;
-        const scale = this._settings.get_double('panel-scale') * Math.max(0.7, m.height / 1080);
-        const margin = Math.round(18 * scale);
+        // stage pixels per design pixel: bigger on bigger screens, and the user's own size setting
+        const unit = this._settings.get_double('panel-scale') * Math.max(0.7, m.height / 1080);
+        // the join card and the raster are big: keep them on screen
+        const joinUnit = Math.min(unit, (m.width - 40) / 420, (m.height - 80) / 600);
+        const sumUnit = Math.min(unit, (m.width - 40) / SUMMARY_W, (m.height - 80) / SUMMARY_H);
+        this._restyle(unit, joinUnit, sumUnit);
+
+        const margin = Math.round(18 * unit);
         const corner = this._settings.get_string('corner');
         const right = corner.endsWith('right');
         const bottom = corner.startsWith('bottom');
         const [, w] = this._corner.get_preferred_width(-1);
         const [, h] = this._corner.get_preferred_height(-1);
-        this._corner.set_pivot_point(right ? 1 : 0, bottom ? 1 : 0);
-        this._corner.set_scale(scale, scale);
         this._corner.set_position(
-            right ? m.x + m.width - w - margin : m.x + margin,
-            bottom ? m.y + m.height - h - margin : m.y + margin + Main.panel.height);
+            Math.round(right ? m.x + m.width - w - margin : m.x + margin),
+            Math.round(bottom ? m.y + m.height - h - margin : m.y + margin + Main.panel.height));
 
         for (const actor of [this._join, this._summary]) {
             const [, aw] = actor.get_preferred_width(-1);
             const [, ah] = actor.get_preferred_height(-1);
-            const fit = Math.min(scale, (m.width - 40) / aw, (m.height - 80) / ah);
-            actor.set_pivot_point(0.5, 0.5);
-            actor.set_scale(fit, fit);
             actor.set_position(Math.round(m.x + (m.width - aw) / 2), Math.round(m.y + (m.height - ah) / 2));
         }
+    }
+
+    _restyle(unit, joinUnit, sumUnit) {
+        const key = `${unit}/${joinUnit}/${sumUnit}`;
+        if (key === this._styled)
+            return;
+        this._styled = key;
+        this._unit = unit;
+        this._joinUnit = joinUnit;
+        this._sumUnit = sumUnit;
+        // St multiplies CSS pixels by the desktop's scale factor itself, so divide it out
+        const sf = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+        const css = (style, u) => style(u / sf);
+        this._corner.style = css(STYLE.corner, unit);
+        for (const c of [this._roomCard, this._brainCard]) {
+            c.box.style = css(STYLE.card, unit);
+            c.head.style = css(STYLE.head, unit);
+            c.name.style = css(STYLE.title, unit);
+            c.value.style = css(STYLE.value, unit);
+        }
+        this._roomArea.set_size(Math.round(ROOM_W * unit), Math.round(ROOM_H * unit));
+        this._brainArea.set_size(Math.round(BRAIN_W * unit), Math.round(BRAIN_H * unit));
+
+        this._join.style = css(STYLE.join, joinUnit);
+        this._joinTitle.style = css(STYLE.joinTitle, joinUnit);
+        this._joinUrl.style = css(STYLE.joinUrl, joinUnit);
+        this._joinCode.style = css(STYLE.joinCode, joinUnit);
+        this._joinCount.style = css(STYLE.joinCount, joinUnit);
+        this._qrArea.set_size(Math.round(QR_SIZE * joinUnit), Math.round(QR_SIZE * joinUnit));
+
+        this._summary.set_size(Math.round(SUMMARY_W * sumUnit), Math.round(SUMMARY_H * sumUnit));
+        for (const area of [this._roomArea, this._brainArea, this._qrArea, this._summary])
+            area.queue_repaint();
     }
 
     _frame() {
@@ -316,6 +375,7 @@ export class Stage {
 
     _paintRoom(area) {
         const cr = area.get_context();
+        cr.scale(this._unit, this._unit);
         const room = this._room;
         const t = now();
         const w = ROOM_W;
@@ -374,6 +434,7 @@ export class Stage {
 
     _paintBrain(area) {
         const cr = area.get_context();
+        cr.scale(this._unit, this._unit);
         const brain = this._brain;
         const t = now();
         const w = BRAIN_W;
@@ -453,18 +514,23 @@ export class Stage {
 
     _paintQr(area) {
         const cr = area.get_context();
+        cr.scale(this._joinUnit, this._joinUnit);
         roundRect(cr, 0, 0, QR_SIZE, QR_SIZE, 22);
         cr.setSourceRGB(1, 1, 1);
         cr.fill();
         const m = this._qr;
         if (m) {
             const quiet = 3;
-            const cell = QR_SIZE / (m.length + 2 * quiet);
+            // whole screen pixels per module, so the code stays crisp and easy to scan
+            const px = Math.max(1, Math.floor(QR_SIZE * this._joinUnit / (m.length + 2 * quiet)));
+            const cell = px / this._joinUnit;
+            const offset = (QR_SIZE - cell * (m.length + 2 * quiet)) / 2;
+            cr.translate(Math.round(offset * this._joinUnit) / this._joinUnit, Math.round(offset * this._joinUnit) / this._joinUnit);
             cr.setSourceRGB(...INK);
             for (let y = 0; y < m.length; y++) {
                 for (let x = 0; x < m.length; x++) {
                     if (m[y][x])
-                        cr.rectangle((x + quiet) * cell, (y + quiet) * cell, cell + 0.4, cell + 0.4);
+                        cr.rectangle((x + quiet) * cell, (y + quiet) * cell, cell, cell);
                 }
             }
             cr.fill();
